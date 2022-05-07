@@ -17,20 +17,14 @@ class MoviesBloc extends Bloc<MoviesEvent, MoviesState> {
     on<MoviesEvent>((event, emit) async {
       if (event is SearchMovieEvent) {
         movieTitle = event.movieTitle;
-        _moviesSink.add(
-          await _initializeMovies(event.movieTitle, event.page),
+        emit.call(
+          NewMoviesListState(
+            await _initializeMovies(event.movieTitle, event.page),
+          ),
         );
       }
     });
   }
-
-  final StreamController<List<Movie>> _moviesStreamController =
-      StreamController<List<Movie>>.broadcast();
-
-  Sink<List<Movie>> get _moviesSink => _moviesStreamController.sink;
-
-  Stream<List<Movie>> get moviesStream =>
-      _moviesStreamController.stream.asBroadcastStream();
 
   Future<List<Movie>> _initializeMovies(String movieTitle, String page) async {
     return await _moviesRepository.getMovies(movieTitle, page);

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:loadmore/loadmore.dart';
@@ -20,9 +22,11 @@ class _MoviesScreenState extends State<MoviesScreen> {
   late MoviesBloc moviesBloc;
   late Size _screenSize;
   List<Movie> movies = [];
+  List<Movie> tempMovies = [];
   bool isFinished = false;
   int page = 1;
   TextEditingController controller = TextEditingController();
+  StreamController<List<Movie>> moviesStream = StreamController();
 
   @override
   void initState() {
@@ -32,41 +36,51 @@ class _MoviesScreenState extends State<MoviesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    _screenSize = MediaQuery.of(context).size;
+    _screenSize = MediaQuery
+        .of(context)
+        .size;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text("Demo Movies App"),
       ),
-      body: StreamBuilder<List<Movie>>(
-          initialData: const [],
-          stream: moviesBloc.moviesStream,
-          builder: (context, snapshot) {
-            movies.addAll(snapshot.data!);
-            isFinished = snapshot.data!.isEmpty;
-            return LoadMore(
-              textBuilder: ConstMethods.loadMoreWordings,
-              onLoadMore: () async {
-                page++;
-                moviesBloc
-                    .add(SearchMovieEvent(controller.text, page.toString()));
-                return true;
-              },
-              isFinish: isFinished,
-              whenEmptyLoad: false,
-              delegate: CustomLoadMoreDelegate(),
-              child: ListView.builder(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-                  itemCount: movies.length + 1,
-                  itemBuilder: (context, index) {
-                    if (index == 0) {
-                      return searchTextField();
-                    }
-                    return getMovieView(movies[index - 1]);
-                  }),
-            );
-          }),
+      resizeToAvoidBottomInset: false,
+      body: BlocListener<MoviesBloc, MoviesState>(
+        listener: (context, state) {
+          if(state is NewMoviesListState){
+            movies.addAll(state.movies);
+            moviesStream.sink.add(movies);
+            isFinished = state.movies.isEmpty;
+          }
+        },
+        child: StreamBuilder<List<Movie>>(
+            initialData: const [],
+            stream: moviesStream.stream,
+            builder: (context, snapshot) {
+              return LoadMore(
+                textBuilder: ConstMethods.loadMoreWordings,
+                onLoadMore: () async {
+                  page++;
+                  moviesBloc.add(
+                      SearchMovieEvent(controller.text, page.toString()));
+                  return true;
+                },
+                isFinish: isFinished,
+                whenEmptyLoad: false,
+                delegate: CustomLoadMoreDelegate(),
+                child: ListView.builder(
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                    itemCount: movies.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == 0) {
+                        return searchTextField();
+                      }
+                      return getMovieView(movies[index - 1]);
+                    }),
+              );
+            }),
+      ),
     );
   }
 
@@ -119,15 +133,16 @@ class _MoviesScreenState extends State<MoviesScreen> {
     );
   }
 
-  Widget _imageBuilder(Movie movie){
+  Widget _imageBuilder(Movie movie) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
       width: _screenSize.width,
       height: _screenSize.height * 0.3,
-      child: ImageBuilder(imageUrl: movie.poster,),
+      child: ImageBuilder(
+        imageUrl: movie.poster,
+      ),
     );
   }
-
 
   Widget _moreButton(Movie movie) {
     return GestureDetector(
